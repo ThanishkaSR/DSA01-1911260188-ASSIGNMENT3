@@ -1,1 +1,225 @@
+# Q1 – CONSTRUCTORS AND CONSTRUCTOR OVERLOADING
 
+## 1. Aim
+To create a Book class using default, parameterised and overloaded constructors with constructor delegation, member initializer lists and validation.
+
+## 2. C++ Program
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Book {
+    string title;
+    string author;
+    int copies;
+
+public:
+    Book() : Book("Unknown", "Unknown", 0) {
+    }
+
+    Book(string t) : Book(t, "Unknown", 0) {
+    }
+
+    Book(string t, string a, int c)
+        : title(t), author(a), copies(c >= 0 ? c : 0) {
+    }
+
+    void display() {
+        cout << "Title: " << title << endl;
+        cout << "Author: " << author << endl;
+        cout << "Copies: " << copies << endl;
+        cout << endl;
+    }
+};
+
+int main() {
+    Book b1;
+    Book b2("Harry Potter");
+    Book b3("Wings of Fire", "APJ Abdul Kalam", 5);
+    Book b4("C Programming", "Dennis Ritchie", -3);
+
+    b1.display();
+    b2.display();
+    b3.display();
+    b4.display();
+
+    return 0;
+}
+```
+
+## 3. Output
+
+```text
+Title: Unknown
+Author: Unknown
+Copies: 0
+
+Title: Harry Potter
+Author: Unknown
+Copies: 0
+
+Title: Wings of Fire
+Author: APJ Abdul Kalam
+Copies: 5
+
+Title: C Programming
+Author: Dennis Ritchie
+Copies: 0
+```
+
+## 4. Design and Analysis
+
+**A. Default constructor**
+- The compiler provides a default constructor if no constructor is defined.
+- If we define our own constructor, the compiler does not automatically provide one.
+
+**B. Member initializer list**
+- Initializes members directly during object creation.
+- Avoids unnecessary assignments.
+- Required for constant and reference members.
+
+**C. Initialization order**
+- Members are initialized in their declaration order, not the order written in the initializer list.
+
+**D. State of three objects**
+
+| Object | Title | Author | Copies |
+|---|---|---|---|
+| b1 | Unknown | Unknown | 0 |
+| b2 | Harry Potter | Unknown | 0 |
+| b3 | Wings of Fire | APJ Abdul Kalam | 5 |
+
+## 5. Experimental Investigation
+
+**A. Removing the default constructor**
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Book {
+public:
+    Book(string t) {
+        cout << t;
+    }
+};
+
+int main() {
+    Book b[3];
+    return 0;
+}
+```
+
+Expected error: No matching function for call to `Book::Book()`.
+
+Reason: The array requires a default constructor for its elements.
+
+**B. Wrong initialization order**
+
+```cpp
+Book() : copies(5), author("Unknown"), title("C++") {
+}
+```
+
+Compile using:
+
+```bash
+g++ -std=c++17 -Wall -Wextra -Wreorder task1.cpp -o task1
+```
+
+Expected warning: Members will be initialized in declaration order, not initializer list order.
+
+**C. Negative copies**
+
+```cpp
+Book b("C Programming", "Dennis Ritchie", -5);
+b.display();
+```
+
+Output:
+
+```text
+Title: C Programming
+Author: Dennis Ritchie
+Copies: 0
+```
+
+Result: Negative copies are replaced with zero.
+
+## 6. Design Question – Explicit Constructor
+
+The `explicit` keyword prevents automatic type conversion.
+
+**Without explicit:**
+
+```cpp
+Book(string t) {
+}
+```
+
+```cpp
+Book b = string("Harry Potter");
+```
+
+This compiles.
+
+**With explicit:**
+
+```cpp
+explicit Book(string t) {
+}
+```
+
+```cpp
+Book b = string("Harry Potter");
+```
+
+This gives a compiler error because automatic conversion is not allowed.
+
+Correct method:
+
+```cpp
+Book b(string("Harry Potter"));
+```
+
+Explicit should be used to prevent unwanted automatic conversions.
+
+## 7. Alternative Concept – Default Arguments
+
+Instead of multiple constructors, one constructor can use default arguments.
+
+```cpp
+Book(string t = "Unknown",
+     string a = "Unknown",
+     int c = 0)
+    : title(t), author(a), copies(c >= 0 ? c : 0) {
+}
+```
+
+This constructor can create empty books, books with only a title and books with complete details.
+
+**Comparison:**
+
+| Constructor Overloading | Default Arguments |
+|---|---|
+| Multiple constructors | One constructor |
+| Uses delegation | No delegation |
+| More code | Less code |
+| Different initialization methods | Default parameter values |
+
+## 8. Complexity Analysis
+
+| Operation | Time | Space |
+|---|---|---|
+| Object creation | O(1) | O(1) |
+| Constructor overloading | O(1) | O(1) |
+| Default arguments | O(1) | O(1) |
+
+Both approaches have the same complexity. Default arguments reduce code, while constructor delegation helps avoid repeating initialization and validation.
+
+## 9. Conclusion
+
+The Book class was created successfully using different constructors. Constructor delegation and member initializer lists were used, and negative copy values were prevented through validation. The experiments demonstrated constructor behaviour and initialization order.
