@@ -1,0 +1,394 @@
+## 1. Aim
+
+To implement a `Text` class using dynamic memory allocation and overload assignment, addition, comparison and output operators.
+
+## 2. C++ Program
+
+```cpp
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class Text {
+    char* data;
+    static int copies;
+
+public:
+    // Constructor
+    Text(const char* s = "") {
+        data = new char[strlen(s) + 1];
+        strcpy(data, s);
+    }
+
+    // Copy constructor
+    Text(const Text& t) {
+        data = new char[strlen(t.data) + 1];
+        strcpy(data, t.data);
+        copies++;
+        cout << "Copy constructor called" << endl;
+    }
+
+    // Copy assignment operator
+    Text& operator=(const Text& t) {
+        if (this != &t) {
+            char* temp = new char[strlen(t.data) + 1];
+            strcpy(temp, t.data);
+
+            delete[] data;
+            data = temp;
+        }
+        return *this;
+    }
+
+    // Addition operator
+    Text operator+(const Text& t) const {
+        int len = strlen(data) + strlen(t.data);
+        char* temp = new char[len + 1];
+
+        strcpy(temp, data);
+        strcat(temp, t.data);
+
+        Text result(temp);
+        delete[] temp;
+
+        return result;
+    }
+
+    // Equality operator
+    bool operator==(const Text& t) const {
+        return strcmp(data, t.data) == 0;
+    }
+
+    // Not equal operator
+    bool operator!=(const Text& t) const {
+        return !(*this == t);
+    }
+
+    // Output operator
+    friend ostream& operator<<(ostream& out, const Text& t) {
+        out << t.data;
+        return out;
+    }
+
+    // Destructor
+    ~Text() {
+        delete[] data;
+    }
+
+    static int getCopies() {
+        return copies;
+    }
+};
+
+int Text::copies = 0;
+
+int main() {
+    Text a("Hello");
+    Text b(" World");
+    Text c("!");
+
+    // Concatenation
+    Text result = a + b + c;
+    cout << "Combined text: " << result << endl;
+
+    // Comparison
+    Text x("Hello");
+    Text y("Hello");
+
+    cout << boolalpha;
+    cout << "Equal: " << (x == y) << endl;
+    cout << "Not equal: " << (x != y) << endl;
+
+    // Assignment
+    Text d;
+    d = a;
+    cout << "Assigned text: " << d << endl;
+
+    // Self-assignment
+    d = d;
+    cout << "After self-assignment: " << d << endl;
+
+    // Empty message
+    Text empty("");
+    cout << "Empty message: [" << empty << "]" << endl;
+
+    // Long message
+    Text longText("This is a long SMS message for testing.");
+    cout << "Long message: " << longText << endl;
+
+    cout << "Total copies: " << Text::getCopies() << endl;
+
+    return 0;
+}
+```
+
+## 3. Expected Output
+
+```text
+Combined text: Hello World!
+Equal: true
+Not equal: false
+Assigned text: Hello
+After self-assignment: Hello
+Empty message: []
+Long message: This is a long SMS message for testing.
+Total copies: 0
+```
+
+*Note: With this implementation and C++17, the compiler can eliminate unnecessary copies when evaluating `a + b + c`. The copy count may differ if compiler optimizations or return-value elision differ.*
+
+## 4. Design and Analysis
+
+### A. Operators that cannot be overloaded
+
+| Operator | Reason |
+|---|---|
+| `::` | Scope resolution |
+| `.` | Member access |
+| `.*` | Pointer-to-member access |
+| `?:` | Conditional operator |
+| `sizeof` | Compile-time size calculation |
+
+These operators have fixed meanings in C++.
+
+### B. Rules of Operator Overloading
+
+1. Operator precedence cannot be changed.
+2. Operator associativity cannot be changed.
+3. Number of operands (arity) cannot be changed.
+4. At least one operand must be a user-defined type.
+
+### C. Why must operator= be a member function?
+
+- The assignment operator must be a member function.
+- It modifies the current object.
+- It can access private data members directly.
+
+### D. When should an operator be a friend?
+
+A friend function is useful when an operator needs access to private members but the left operand is not the class object.
+
+Example:
+
+```cpp
+friend ostream& operator<<(ostream& out, const Text& t);
+```
+
+The left operand is `cout`, so `<<` is implemented as a non-member friend function.
+
+## 5. Experimental Investigation
+
+### A. Count Copies in a + b + c
+
+```cpp
+Text result = a + b + c;
+```
+
+The copy constructor prints a message whenever a copy occurs.
+
+**Observation:** With C++17 and the given implementation, the expression can be evaluated without calling the copy constructor because of copy elision.
+
+### B. Test Self-Assignment
+
+```cpp
+d = d;
+```
+
+**Observation:** The condition `if (this != &t)` prevents the object from deleting its own data before copying it.
+
+### C. Test Long and Empty Messages
+
+```cpp
+Text empty("");
+Text longText("This is a long SMS message for testing.");
+```
+
+**Observation:** Both empty and long messages are stored and displayed correctly.
+
+### D. Address Sanitizer Test
+
+Compile using:
+
+```bash
+g++ -std=c++17 -fsanitize=address -g task6.cpp -o task6
+```
+
+Run using:
+
+```bash
+./task6
+```
+
+**Observation:** The program should execute without memory errors. The destructor releases the dynamically allocated memory.
+
+### E. Compare Text and std::string for 100,000 Concatenations
+
+Use this as a separate timing program:
+
+```cpp
+#include <iostream>
+#include <string>
+#include <chrono>
+#include <cstring>
+using namespace std;
+using namespace chrono;
+
+class Text {
+    char* data;
+
+public:
+    Text(const char* s = "") {
+        data = new char[strlen(s) + 1];
+        strcpy(data, s);
+    }
+
+    Text(const Text& t) {
+        data = new char[strlen(t.data) + 1];
+        strcpy(data, t.data);
+    }
+
+    Text& operator=(const Text& t) {
+        if (this != &t) {
+            char* temp = new char[strlen(t.data) + 1];
+            strcpy(temp, t.data);
+            delete[] data;
+            data = temp;
+        }
+        return *this;
+    }
+
+    Text operator+(const Text& t) const {
+        int len = strlen(data) + strlen(t.data);
+        char* temp = new char[len + 1];
+
+        strcpy(temp, data);
+        strcat(temp, t.data);
+
+        Text result(temp);
+        delete[] temp;
+        return result;
+    }
+
+    ~Text() {
+        delete[] data;
+    }
+};
+
+int main() {
+    const int n = 100000;
+
+    Text a("A"), b("B");
+    string x = "A", y = "B";
+
+    auto start1 = high_resolution_clock::now();
+
+    for (int i = 0; i < n; i++)
+        a = a + b;
+
+    auto end1 = high_resolution_clock::now();
+
+    auto start2 = high_resolution_clock::now();
+
+    for (int i = 0; i < n; i++)
+        x = x + y;
+
+    auto end2 = high_resolution_clock::now();
+
+    cout << "Text time: "
+         << duration_cast<milliseconds>(end1 - start1).count()
+         << " ms" << endl;
+
+    cout << "String time: "
+         << duration_cast<milliseconds>(end2 - start2).count()
+         << " ms" << endl;
+
+    return 0;
+}
+```
+
+**Observation:**
+
+- Both programs perform 100,000 concatenations.
+- `std::string` is generally more efficient because it manages memory internally.
+- Record the actual execution times from your compiler.
+
+## 6. Conclusion
+
+The Text class successfully implements dynamic memory allocation, copy construction, assignment, concatenation and comparison. Self-assignment is handled safely, and the destructor releases allocated memory.
+
+## 7. Alternative Concept and Complexity Analysis
+
+### A. Using std::string
+
+Instead of a dynamically allocated character array, we can use `std::string`.
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    string a = "Hello";
+    string b = " World";
+    string c = "!";
+
+    string result = a + b + c;
+
+    cout << result << endl;
+    return 0;
+}
+```
+
+**Output:**
+
+```text
+Hello World!
+```
+
+`std::string` automatically manages memory and provides built-in operators.
+
+### B. Using += on a Copy
+
+Another way to implement addition is:
+
+```cpp
+Text operator+(Text a, const Text& b) {
+    // Append b to a and return a
+}
+```
+
+Here, the first argument is passed by value, so a copy is made.
+
+### C. Complexity Analysis
+
+Let the lengths of the three messages be n1, n2 and n3.
+
+| Operation | Time Complexity | Space Complexity |
+|---|---|---|
+| Copy constructor | O(n) | O(n) |
+| Assignment | O(n) | O(n) |
+| Comparison | O(n) | O(1) |
+| Concatenation | O(n1 + n2) | O(n1 + n2) |
+
+For `a + b + c`:
+
+- First concatenation copies n1 + n2 characters.
+- Second concatenation copies n1 + n2 + n3 characters.
+- Total character copying is approximately 2n1 + 2n2 + n3.
+- Temporary memory is required for intermediate results.
+
+### D. Comparison
+
+| Text Class | std::string |
+|---|---|
+| Manual memory management | Automatic memory management |
+| Requires copy constructor | Built-in copying |
+| Requires destructor | No manual destructor |
+| More control over memory | Easier to use |
+| More code | Less code |
+
+Both approaches have O(n) copying complexity for a message of length n.
+
+## 8. Final Conclusion
+
+Writing the Text class helps us understand dynamic memory allocation, deep copying, operator overloading and memory management. Although `std::string` is easier and safer for normal applications, a custom Text class is useful when special memory management or specific behaviour is required.
