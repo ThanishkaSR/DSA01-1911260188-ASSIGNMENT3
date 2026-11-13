@@ -1,0 +1,358 @@
+# TASK 7 – DESIGN A COMPLEX-NUMBER CLASS FROM FIRST PRINCIPLES
+
+## Stage 1 – Interpret the Problem
+
+### 1. Data and Operations Needed
+
+The Complex class stores two values:
+- Real part
+- Imaginary part
+
+The operations required are:
+- Addition (+)
+- Subtraction (-)
+- Multiplication (*)
+- Division (/)
+- Equality (==)
+- Display (<<)
+- Magnitude calculation
+
+### 2. Constructors Required
+
+1. Default constructor: Initializes real and imaginary parts to zero.
+2. Single-parameter constructor: Initializes only the real part.
+3. Two-parameter constructor: Initializes both real and imaginary parts.
+
+### 3. Measurable Requirements
+
+- The class must perform all arithmetic operations correctly.
+- It must display complex numbers in rectangular form.
+- It must calculate the magnitude.
+- It must handle division by zero safely.
+- It must calculate series and parallel circuit impedance.
+
+## Stage 2 – Design
+
+### 1. Class Design
+
+The Complex class contains:
+- `real` – stores the real part.
+- `imag` – stores the imaginary part.
+- Constructors to initialize the values.
+- Overloaded operators for arithmetic and comparison.
+- A magnitude function to calculate the magnitude.
+
+### 2. Formulas Used
+
+Let Z1 = a + jb and Z2 = c + jd.
+
+**Addition:**
+
+Z1 + Z2 = (a + c) + j(b + d)
+
+**Subtraction:**
+
+Z1 - Z2 = (a - c) + j(b - d)
+
+**Multiplication:**
+
+Z1 × Z2 = (ac - bd) + j(ad + bc)
+
+**Division:**
+
+Z1 / Z2 = [(ac + bd) + j(bc - ad)] / (c² + d²)
+
+**Equality:**
+
+Two complex numbers are equal when their real and imaginary parts are equal.
+
+**Magnitude:**
+
+|Z| = √(a² + b²)
+
+### 3. Member and Friend Functions
+
+- Arithmetic operators (+, -, *, /) and equality (==) are implemented as member functions.
+- The insertion operator (<<) is implemented as a friend function because the left operand is `cout`.
+
+## Stage 3 – Implement and Verify
+
+### 1. C++ Program
+
+```cpp
+#include <iostream>
+#include <cmath>
+#include <iomanip>
+#include <stdexcept>
+using namespace std;
+
+class Complex {
+    double real, imag;
+
+public:
+    // Default constructor
+    Complex() {
+        real = 0;
+        imag = 0;
+    }
+
+    // Constructor with real part
+    Complex(double r) {
+        real = r;
+        imag = 0;
+    }
+
+    // Constructor with real and imaginary parts
+    Complex(double r, double i) {
+        real = r;
+        imag = i;
+    }
+
+    // Addition
+    Complex operator+(Complex c) {
+        return Complex(real + c.real, imag + c.imag);
+    }
+
+    // Subtraction
+    Complex operator-(Complex c) {
+        return Complex(real - c.real, imag - c.imag);
+    }
+
+    // Multiplication
+    Complex operator*(Complex c) {
+        return Complex(real * c.real - imag * c.imag,
+                       real * c.imag + imag * c.real);
+    }
+
+    // Division
+    Complex operator/(Complex c) {
+        double denominator = c.real * c.real + c.imag * c.imag;
+
+        if (denominator == 0) {
+            throw runtime_error("Division by zero impedance!");
+        }
+
+        return Complex((real * c.real + imag * c.imag) / denominator,
+                       (imag * c.real - real * c.imag) / denominator);
+    }
+
+    // Equality
+    bool operator==(Complex c) {
+        return fabs(real - c.real) < 0.000001 &&
+               fabs(imag - c.imag) < 0.000001;
+    }
+
+    // Magnitude
+    double magnitude() {
+        return sqrt(real * real + imag * imag);
+    }
+
+    // Display
+    friend ostream& operator<<(ostream& out, Complex c) {
+        out << c.real;
+
+        if (c.imag >= 0)
+            out << " + j" << c.imag;
+        else
+            out << " - j" << fabs(c.imag);
+
+        return out;
+    }
+};
+
+int main() {
+    const double pi = 3.141592653589793;
+    double frequency = 50;
+    double R = 10;
+    double L = 0.1;
+    double C = 0.0001;
+
+    double w = 2 * pi * frequency;
+
+    Complex resistor(R, 0);
+    Complex inductor(0, w * L);
+    Complex capacitor(0, -1 / (w * C));
+
+    // Series RLC impedance
+    Complex series = resistor + inductor + capacitor;
+
+    // Parallel RLC impedance
+    Complex parallel = (resistor * inductor) /
+                       (resistor + inductor);
+
+    parallel = (parallel * capacitor) /
+               (parallel + capacitor);
+
+    cout << fixed << setprecision(4);
+
+    cout << "Resistor: " << resistor << endl;
+    cout << "Inductor: " << inductor << endl;
+    cout << "Capacitor: " << capacitor << endl;
+
+    cout << "\nSeries impedance: " << series << endl;
+    cout << "Series magnitude: " << series.magnitude() << endl;
+
+    cout << "\nParallel impedance: " << parallel << endl;
+    cout << "Parallel magnitude: " << parallel.magnitude() << endl;
+
+    // Testing equality
+    Complex a(10, 5);
+    Complex b(10, 5);
+
+    cout << "\nEquality: " << boolalpha << (a == b) << endl;
+
+    // Testing division by zero
+    try {
+        Complex zero(0, 0);
+        Complex result = a / zero;
+        cout << result << endl;
+    }
+    catch (runtime_error e) {
+        cout << "\nError: " << e.what() << endl;
+    }
+
+    return 0;
+}
+```
+
+### 2. Expected Output
+
+```text
+Resistor: 10.0000 + j0.0000
+Inductor: 0.0000 + j31.4159
+Capacitor: 0.0000 - j31.8310
+
+Series impedance: 10.0000 - j0.4151
+Series magnitude: 10.0086
+
+Parallel impedance: 9.9998 + j0.0415
+Parallel magnitude: 9.9999
+
+Equality: true
+
+Error: Division by zero impedance!
+```
+
+### 3. Hand Calculation
+
+Given:
+
+- Resistance (R) = 10 Ω
+- Inductance (L) = 0.1 H
+- Capacitance (C) = 100 µF
+- Frequency (f) = 50 Hz
+
+Angular frequency:
+
+ω = 2πf = 314.159
+
+Impedance of resistor:
+
+ZR = 10 + j0
+
+Impedance of inductor:
+
+ZL = jωL = j31.4159
+
+Impedance of capacitor:
+
+ZC = -j/(ωC) = -j31.8310
+
+**Series Circuit:**
+
+Zs = ZR + ZL + ZC
+
+Zs = 10 + j31.4159 - j31.8310
+
+Zs = 10 - j0.4151 Ω
+
+Magnitude:
+
+|Zs| = √(10² + (-0.4151)²)
+
+|Zs| ≈ 10.0086 Ω
+
+**Parallel Circuit:**
+
+Zp = (ZR × ZL × ZC) / (ZR × ZL + ZL × ZC + ZC × ZR)
+
+Zp ≈ 9.9998 + j0.0415 Ω
+
+Magnitude:
+
+|Zp| ≈ 9.9999 Ω
+
+The program results agree with the hand calculations.
+
+## Stage 4 – Defend the Design
+
+### 1. Comparison with std::complex<double>
+
+| Our Complex Class | std::complex<double> |
+|---|---|
+| Created manually | Already available in C++ |
+| Requires operator implementation | Operators are already defined |
+| Requires manual division-by-zero checking | Division-by-zero checking must also be handled separately |
+| Useful for understanding operator overloading | Useful for practical applications |
+
+### 2. Why Each Constructor and Operator Is Needed
+
+- Default constructor initializes both parts to zero.
+- Single-parameter constructor represents a real number.
+- Two-parameter constructor initializes both real and imaginary parts.
+- Addition and subtraction perform impedance calculations.
+- Multiplication and division calculate parallel impedance.
+- Equality compares two complex numbers.
+- Stream insertion displays the complex number.
+- Magnitude calculates the absolute value of impedance.
+
+### 3. One Remaining Limitation
+
+The class uses double values, so floating-point rounding errors may occur during calculations. It may also have limitations when handling extremely large values.
+
+## Alternative Concept and Complexity Analysis
+
+If `std::complex<double>` is used instead of our own Complex class, the implementation becomes simpler because its constructors and operators are already available.
+
+Example:
+
+```cpp
+#include <iostream>
+#include <complex>
+using namespace std;
+
+int main() {
+    complex<double> a(10, 5);
+    complex<double> b(4, 2);
+
+    complex<double> sum = a + b;
+    complex<double> product = a * b;
+
+    cout << "Addition: " << sum << endl;
+    cout << "Multiplication: " << product << endl;
+
+    return 0;
+}
+```
+
+### Complexity Comparison
+
+| Operation | Our Complex Class | std::complex<double> |
+|---|---|---|
+| Addition | O(1) | O(1) |
+| Subtraction | O(1) | O(1) |
+| Multiplication | O(1) | O(1) |
+| Division | O(1) | O(1) |
+| Space | O(1) | O(1) |
+
+Both implementations store two double values. Therefore, both require constant space.
+
+### Accuracy and Division by Zero
+
+Both implementations use floating-point values and may produce rounding errors.
+
+Our class allows us to implement a custom division-by-zero check. In `std::complex<double>`, division by zero does not automatically throw an exception, so the denominator must be checked separately.
+
+### Conclusion
+
+Creating the Complex class helped me understand constructors, operator overloading, friend functions and complex-number calculations. Although `std::complex<double>` is easier to use, creating a custom class is useful when special validation and behaviour are required.
