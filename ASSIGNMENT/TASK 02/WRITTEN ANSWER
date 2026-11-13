@@ -1,8 +1,14 @@
-## 1. Aim
+# TASK 2 – COPY CONSTRUCTORS: SHALLOW AND DEEP COPIES
 
-To understand shallow and deep copying by implementing a copy constructor, copy assignment operator and destructor for a Prescription class.
+## 1. Introduction
 
-## 2. Shallow Copy – Without Copy Constructor
+A Prescription class stores medicine names in a dynamically allocated array. When an object is copied, a shallow copy copies only the pointer address. This causes both objects to share the same memory.
+
+A deep copy creates a separate memory location for the copied object. This prevents unwanted changes and memory errors.
+
+## 2. Shallow Copy Implementation
+
+### C++ Program
 
 ```cpp
 #include <iostream>
@@ -19,10 +25,6 @@ public:
         medicines = new string[n];
     }
 
-    ~Prescription() {
-        delete[] medicines;
-    }
-
     void set(int i, string m) {
         medicines[i] = m;
     }
@@ -32,38 +34,69 @@ public:
             cout << medicines[i] << " ";
         cout << endl;
     }
+
+    ~Prescription() {
+        delete[] medicines;
+    }
 };
 
 int main() {
     Prescription p(2);
+
     p.set(0, "Paracetamol");
     p.set(1, "ORS");
 
-    Prescription q = p;
+    Prescription q = p;  // Shallow copy
 
     q.set(1, "Cetirizine");
 
+    cout << "Original: ";
     p.display();
+
+    cout << "Copied: ";
     q.display();
 
     return 0;
 }
 ```
 
-**Observation:**
+### Observation
 
-- The compiler-generated copy constructor copies only the pointer.
-- Both objects point to the same memory.
-- Changing one object affects the other.
-- When both objects are destroyed, the same memory is deleted twice, causing a double-free error.
+Both objects share the same memory address. Therefore, changing the copied prescription also changes the original prescription.
 
-Run this version using:
+The program may crash at the end because both destructors attempt to delete the same memory.
 
-```bash
-g++ -std=c++17 -fsanitize=address task2.cpp -o task2
+### Memory Diagram – Shallow Copy
+
+```text
+       Object p                 Object q
+    +------------+           +------------+
+    | medicines  | --------> |            |
+    +------------+           +------------+
+                                  |
+                                  |
+                                  v
+                         Shared Memory
+                      +------------------+
+                      | Paracetamol      |
+                      | Cetirizine       |
+                      +------------------+
 ```
 
-## 3. Deep Copy – Correct Program
+### Sanitizer Command
+
+```bash
+g++ -std=c++17 -fsanitize=address -g shallow.cpp -o shallow
+./shallow
+```
+
+### Observation
+
+The Address Sanitizer may report an attempt to free already freed memory (double-free).
+
+## 3. Deep Copy Implementation
+
+### C++ Program
 
 ```cpp
 #include <iostream>
@@ -75,12 +108,17 @@ class Prescription {
     string* medicines;
 
 public:
-    Prescription(int count) : n(count), medicines(new string[count]) {
+    // Parameterized constructor
+    Prescription(int count) {
+        n = count;
+        medicines = new string[n];
     }
 
     // Copy constructor
-    Prescription(const Prescription& p)
-        : n(p.n), medicines(new string[p.n]) {
+    Prescription(const Prescription& p) {
+        n = p.n;
+        medicines = new string[n];
+
         for (int i = 0; i < n; i++)
             medicines[i] = p.medicines[i];
 
@@ -96,9 +134,11 @@ public:
                 temp[i] = p.medicines[i];
 
             delete[] medicines;
+
             medicines = temp;
             n = p.n;
         }
+
         return *this;
     }
 
@@ -107,12 +147,18 @@ public:
         delete[] medicines;
     }
 
-    void set(int i, const string& m) {
+    void set(int i, string m) {
         medicines[i] = m;
     }
 
     string get(int i) const {
         return medicines[i];
+    }
+
+    void display() const {
+        for (int i = 0; i < n; i++)
+            cout << medicines[i] << " ";
+        cout << endl;
     }
 };
 
@@ -122,11 +168,12 @@ int main() {
     p.set(0, "Paracetamol");
     p.set(1, "ORS");
 
-    Prescription q = p;
+    Prescription q = p;  // Copy constructor
+
     q.set(1, "Cetirizine");
 
     Prescription r(1);
-    r = p;
+    r = p;               // Copy assignment
 
     p.set(0, "Ibuprofen");
 
@@ -138,144 +185,221 @@ int main() {
 }
 ```
 
-## 4. Output
+### Expected Output
 
 ```text
 Copy constructor called
 Ibuprofen ORS | Paracetamol Cetirizine | Paracetamol ORS
 ```
 
-**Result:** Each object has its own memory. Changing one prescription does not affect the others.
+### Explanation
 
-## 5. Design and Analysis
+- The copy constructor creates a new memory allocation and copies every medicine.
+- The copy assignment operator copies the contents into a separate memory location.
+- The original and copied objects can be modified independently.
+- The destructor releases the allocated memory.
 
-**A. Memory diagrams**
-
-Shallow copy:
-
-```text
-p ─────┐
-       ├──> [Paracetamol] [ORS]
-q ─────┘
-```
-
-Deep copy:
+### Memory Diagram – Deep Copy
 
 ```text
-p ─────> [Paracetamol] [ORS]
+       Object p                 Object q
+    +------------+           +------------+
+    | medicines  | --------> |            |
+    +------------+           +------------+
+                                  |
+                                  v
+                           Memory Block 1
+                           Paracetamol
+                           Cetirizine
 
-q ─────> [Paracetamol] [ORS]
+
+       Object r
+    +------------+
+    | medicines  | --------> Memory Block 2
+    +------------+           Paracetamol
 ```
 
-Each object has a separate array in deep copying.
+Each object has its own separate memory allocation.
 
-**B. Why does shallow copying crash?**
+## 4. Design and Analysis
 
-Both objects share the same pointer. When the first object is destroyed, its memory is deleted. The second object tries to delete the same memory again, causing a double-free error.
+### 4.1 Why Does Shallow Copy Cause a Crash?
 
-**C. Rule of Three**
+Shallow copying copies the pointer address instead of creating new memory. Both objects point to the same memory location.
 
-The Rule of Three states that if a class needs one of these three functions, it usually needs all three:
+When the objects are destroyed, both destructors try to release the same memory. This causes a double-delete error and may crash the program.
+
+### 4.2 Rule of Three
+
+The Rule of Three states that if a class requires one of the following functions, it usually requires all three:
 
 1. Copy constructor
 2. Copy assignment operator
 3. Destructor
 
-They are required to manage dynamically allocated memory safely.
+They are needed together because the class manages dynamically allocated memory.
 
-**D. Three situations where a copy constructor is called**
+### 4.3 Three Situations Where Copy Constructor Is Called
 
 1. When one object is initialized using another object.
+   Example: `Prescription q = p;`
+
 2. When an object is passed to a function by value.
-3. When an object is returned from a function by value (if copying is not elided).
 
-## 6. Experimental Investigation
+3. When an object is returned from a function by value, if copy elision does not remove the copy.
 
-**A. Pass by value and const reference**
+## 5. Experimental Investigation
+
+### 5.1 Pass by Value and Pass by Const Reference
 
 ```cpp
-void byValue(Prescription p) {
+#include <iostream>
+using namespace std;
+
+class Test {
+public:
+    Test() {}
+
+    Test(const Test& t) {
+        cout << "Copy constructor called" << endl;
+    }
+};
+
+void passValue(Test t) {
     cout << "Passed by value" << endl;
 }
 
-void byReference(const Prescription& p) {
-    cout << "Passed by reference" << endl;
+void passReference(const Test& t) {
+    cout << "Passed by const reference" << endl;
+}
+
+int main() {
+    Test a;
+
+    passValue(a);
+    passReference(a);
+
+    return 0;
 }
 ```
 
-- Pass by value creates a copy and calls the copy constructor.
-- Pass by const reference does not create a copy.
+**Expected Output**
 
-**B. Self-assignment test**
+```text
+Copy constructor called
+Passed by value
+Passed by const reference
+```
+
+**Observation:**
+
+- Pass by value creates a copy of the object.
+- Pass by const reference does not create a copy.
+- Therefore, const reference is more efficient for large objects.
+
+### 5.2 Testing Self-Assignment
+
+The following statement is used:
 
 ```cpp
 p = p;
 ```
 
-The condition `if (this != &p)` prevents unnecessary copying and memory errors.
+The condition `if (this != &p)` prevents unnecessary copying and protects the object during self-assignment.
 
-**C. Measuring copy time**
+### 5.3 Measuring Copying Time
 
-Test prescriptions containing:
-
-- 10 medicines
-- 1,000 medicines
-- 100,000 medicines
-
-Use `chrono` to measure the time taken for copying. Deep copying takes more time as the number of medicines increases.
-
-**D. Sanitizer test**
-
-Compile using:
-
-```bash
-g++ -std=c++17 -fsanitize=address -g task2.cpp -o task2
-```
-
-The shallow-copy version reports a double-free error. The deep-copy version should run without memory errors.
-
-## 7. Complete the Code – TODO 1 to TODO 3
-
-The three required functions are:
+The following code measures the time required to copy prescriptions containing different numbers of medicines.
 
 ```cpp
-// TODO 1: Copy constructor
-Prescription(const Prescription& p)
-    : n(p.n), medicines(new string[p.n]) {
-    for (int i = 0; i < n; i++)
-        medicines[i] = p.medicines[i];
-}
+#include <iostream>
+#include <string>
+#include <chrono>
+using namespace std;
+using namespace chrono;
 
-// TODO 2: Copy assignment
-Prescription& operator=(const Prescription& p) {
-    if (this != &p) {
-        string* temp = new string[p.n];
+class Prescription {
+    int n;
+    string* medicines;
 
-        for (int i = 0; i < p.n; i++)
-            temp[i] = p.medicines[i];
-
-        delete[] medicines;
-        medicines = temp;
-        n = p.n;
+public:
+    Prescription(int count) {
+        n = count;
+        medicines = new string[n];
     }
-    return *this;
-}
 
-// TODO 3: Destructor
-~Prescription() {
-    delete[] medicines;
+    Prescription(const Prescription& p) {
+        n = p.n;
+        medicines = new string[n];
+
+        for (int i = 0; i < n; i++)
+            medicines[i] = p.medicines[i];
+    }
+
+    ~Prescription() {
+        delete[] medicines;
+    }
+};
+
+int main() {
+    int sizes[] = {10, 1000, 100000};
+
+    for (int i = 0; i < 3; i++) {
+        Prescription p(sizes[i]);
+
+        auto start = high_resolution_clock::now();
+
+        for (int j = 0; j < 100; j++) {
+            Prescription q = p;
+        }
+
+        auto stop = high_resolution_clock::now();
+
+        auto time = duration_cast<microseconds>(stop - start);
+
+        cout << "Medicines: " << sizes[i]
+             << " Time: " << time.count()
+             << " microseconds" << endl;
+    }
+
+    return 0;
 }
 ```
 
-**Expected output:**
+**Observation:**
 
-```text
-Ibuprofen ORS | Paracetamol Cetirizine | Paracetamol ORS
+The copying time increases as the number of medicines increases because every medicine must be copied into the new memory allocation.
+
+Record the actual time displayed by your compiler.
+
+### 5.4 Address Sanitizer Testing
+
+Compile the deep-copy program using:
+
+```bash
+g++ -std=c++17 -fsanitize=address -g deep.cpp -o deep
+./deep
 ```
 
-## 8. Alternative Concept – Using vector
+**Expected observation:**
 
-Instead of a dynamically allocated array, we can use `vector<string>`.
+The deep-copy program should execute without memory errors or memory leaks.
+
+When the copy constructor is removed, the shallow-copy problem returns and the sanitizer may report a double-free error.
+
+## 6. Conclusion
+
+The compiler-generated copy constructor can be used when a class does not directly manage resources such as dynamically allocated memory.
+
+When a class contains pointers and manages dynamic memory, a custom copy constructor is needed to perform a deep copy.
+
+Deep copying ensures that objects remain independent and prevents memory errors such as double deletion.
+
+## 7. Alternative Concept and Complexity Analysis
+
+If medicine names are stored using `vector<string>` instead of a dynamically allocated array, the compiler-generated copy constructor automatically performs a deep copy.
+
+### Alternative C++ Program Using Vector
 
 ```cpp
 #include <iostream>
@@ -287,23 +411,60 @@ class Prescription {
     vector<string> medicines;
 
 public:
-    Prescription(int n) : medicines(n) {
+    Prescription(int n) {
+        medicines.resize(n);
+    }
+
+    void set(int i, string m) {
+        medicines[i] = m;
+    }
+
+    string get(int i) {
+        return medicines[i];
     }
 };
+
+int main() {
+    Prescription p(2);
+
+    p.set(0, "Paracetamol");
+    p.set(1, "ORS");
+
+    Prescription q = p;
+
+    q.set(1, "Cetirizine");
+
+    cout << p.get(0) << " " << p.get(1) << endl;
+    cout << q.get(0) << " " << q.get(1) << endl;
+
+    return 0;
+}
 ```
 
-A vector automatically manages memory and performs deep copying. Therefore, we do not need to write a copy constructor, copy assignment operator or destructor.
+### Output
 
-**Complexity comparison:**
+```text
+Paracetamol ORS
+Paracetamol Cetirizine
+```
 
-| Method | Time | Space |
+### Complexity Comparison
+
+| Copy Type | Time Complexity | Space Complexity |
 |---|---|---|
-| Shallow copy | O(1) | O(1) |
-| Deep copy | O(n) | O(n) |
-| Vector copy | O(n) | O(n) |
+| Shallow Copy | O(1) | O(1) |
+| Deep Copy | O(n) | O(n) |
+| Vector Copy | O(n) | O(n) |
 
-Deep copying and vector copying create independent copies. Shallow copying only copies the pointer.
+Here, n represents the number of medicines.
 
-## 9. Conclusion
+### Comparison
 
-Deep copying ensures that each Prescription object has independent memory. The Rule of Three helps prevent memory errors. Using vector is simpler because it manages memory automatically.
+- Shallow copy only copies the pointer address, so it takes O(1) time and space, but it is unsafe.
+- Deep copy creates a separate array and copies all medicines, taking O(n) time and O(n) additional space.
+- Vector automatically manages memory and performs deep copying.
+- Vector is safer and reduces the need to write a custom copy constructor, assignment operator and destructor.
+
+### Final Conclusion
+
+Using `vector<string>` is generally safer and easier because it automatically manages memory. However, implementing a deep-copying constructor manually helps understand dynamic memory allocation, pointers and the Rule of Three.
