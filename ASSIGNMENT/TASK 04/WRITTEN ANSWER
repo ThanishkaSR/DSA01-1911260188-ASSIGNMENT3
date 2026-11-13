@@ -1,1 +1,399 @@
+# Q4 – OVERLOADING ARITHMETIC AND STREAM OPERATORS
 
+## 1. Aim
+
+To create a `Money` class using operator overloading for addition, subtraction, comparison and input/output operations.
+
+## 2. C++ Program
+
+```cpp
+#include <iostream>
+#include <iomanip>
+#include <string>
+using namespace std;
+
+class Money {
+    long long paise;
+
+public:
+    Money(long long rupees = 0, int p = 0) {
+        paise = rupees * 100 + p;
+    }
+
+    // Addition operator
+    Money operator+(const Money& m) const {
+        return Money(0, paise + m.paise);
+    }
+
+    // Subtraction operator
+    Money operator-(const Money& m) const {
+        return Money(0, paise - m.paise);
+    }
+
+    // Addition assignment operator
+    Money& operator+=(const Money& m) {
+        paise += m.paise;
+        return *this;
+    }
+
+    // Equality operator
+    bool operator==(const Money& m) const {
+        return paise == m.paise;
+    }
+
+    // Less than operator
+    bool operator<(const Money& m) const {
+        return paise < m.paise;
+    }
+
+    // Output operator
+    friend ostream& operator<<(ostream& out, const Money& m) {
+        long long amount = m.paise;
+
+        if (amount < 0) {
+            out << "Rs -";
+            amount = -amount;
+        } else {
+            out << "Rs ";
+        }
+
+        out << amount / 100 << "."
+            << setw(2) << setfill('0') << amount % 100
+            << setfill(' ');
+
+        return out;
+    }
+
+    // Input operator
+    friend istream& operator>>(istream& in, Money& m) {
+        string value;
+        in >> value;
+
+        bool negative = false;
+
+        if (value[0] == '-') {
+            negative = true;
+            value.erase(0, 1);
+        }
+
+        int dot = value.find('.');
+        long long rupees;
+        int p = 0;
+
+        if (dot == string::npos) {
+            rupees = stoll(value);
+        } else {
+            rupees = stoll(value.substr(0, dot));
+            string fraction = value.substr(dot + 1);
+
+            if (fraction.length() == 1)
+                fraction += "0";
+
+            p = stoi(fraction);
+        }
+
+        m.paise = rupees * 100 + p;
+
+        if (negative)
+            m.paise = -m.paise;
+
+        return in;
+    }
+};
+
+int main() {
+    Money a(120, 75);
+    Money b(79, 25);
+
+    // Addition
+    Money c = a + b;
+    cout << c << endl;
+
+    // Equality
+    cout << boolalpha << (c == Money(200)) << endl;
+
+    // Paise carry test
+    Money x(0, 75);
+    Money y(0, 50);
+
+    cout << x + y << endl;
+
+    // Subtraction
+    Money d = Money(5, 20) - Money(7, 50);
+    cout << d << endl;
+
+    // Addition assignment
+    c += Money(10, 50);
+    cout << c << endl;
+
+    // Less than comparison
+    cout << (a < b) << endl;
+
+    // Input test
+    Money entered;
+    cout << "Enter amount: ";
+    cin >> entered;
+    cout << "Entered amount: " << entered << endl;
+
+    return 0;
+}
+```
+
+## 3. Sample Input
+
+```text
+12.50
+```
+
+## 4. Expected Output
+
+```text
+Rs 200.00
+true
+Rs 1.25
+Rs -2.30
+Rs 210.50
+false
+Enter amount: 12.50
+Entered amount: Rs 12.50
+```
+
+## 5. Design and Analysis
+
+### A. Why does `+` return a new object?
+
+- Addition creates a new result without changing the original objects.
+- Therefore, it returns a new `Money` object.
+
+### B. Why does `+=` return a reference?
+
+- It directly modifies the existing object.
+- It returns `*this`, which refers to the current object.
+- Returning a reference avoids creating an unnecessary copy.
+
+### C. Member and Friend Operators
+
+| Operator | Type | Reason |
+|---|---|---|
+| `+` | Member | Uses the current object |
+| `-` | Member | Uses the current object |
+| `+=` | Member | Modifies the current object |
+| `==` | Member | Compares two Money objects |
+| `<` | Member | Compares two Money objects |
+| `<<` | Friend | Needs the output stream as its left operand |
+| `>>` | Friend | Needs the input stream as its left operand |
+
+### D. Why must `<<` be a non-member function?
+
+In:
+
+```cpp
+cout << c;
+```
+
+The left operand is `cout`, which is an `ostream` object, not a `Money` object.
+
+Therefore, `operator<<` must be a non-member function. It is declared as a friend to access the private `paise` variable.
+
+### E. How does the compiler translate `a + b`?
+
+```cpp
+Money c = a + b;
+```
+
+The compiler treats it as:
+
+```cpp
+Money c = a.operator+(b);
+```
+
+## 6. Experimental Investigation
+
+### A. Paise Carry Test
+
+```cpp
+Money x(0, 75);
+Money y(0, 50);
+
+cout << x + y;
+```
+
+Output:
+
+```text
+Rs 1.25
+```
+
+The 125 paise is correctly represented as 1 rupee and 25 paise.
+
+### B. Negative Subtraction Test
+
+```cpp
+Money d = Money(5, 20) - Money(7, 50);
+cout << d;
+```
+
+Output:
+
+```text
+Rs -2.30
+```
+
+**Observation:** Negative amounts are allowed because subtraction may produce a negative balance. The program represents the amount correctly.
+
+### C. Readability Comparison
+
+**Without operator overloading:**
+
+```cpp
+Money c = add(a, b);
+print(c);
+```
+
+**With operator overloading:**
+
+```cpp
+Money c = a + b;
+cout << c;
+```
+
+Operator overloading makes the code shorter and easier to understand.
+
+### D. Comparing Double and Money for 1,000,000 Additions
+
+The following program can be used as a separate timing experiment.
+
+```cpp
+#include <iostream>
+#include <chrono>
+using namespace std;
+using namespace chrono;
+
+int main() {
+    double d = 0.0;
+    long long p = 0;
+
+    auto start1 = high_resolution_clock::now();
+
+    for (int i = 0; i < 1000000; i++)
+        d += 0.01;
+
+    auto end1 = high_resolution_clock::now();
+
+    auto start2 = high_resolution_clock::now();
+
+    for (int i = 0; i < 1000000; i++)
+        p += 1;
+
+    auto end2 = high_resolution_clock::now();
+
+    cout << "Double result: " << d << endl;
+    cout << "Money result in paise: " << p << endl;
+
+    cout << "Double time: "
+         << duration_cast<microseconds>(end1 - start1).count()
+         << " microseconds" << endl;
+
+    cout << "Integer time: "
+         << duration_cast<microseconds>(end2 - start2).count()
+         << " microseconds" << endl;
+
+    return 0;
+}
+```
+
+**Observation:**
+
+- Floating-point addition may produce small precision errors.
+- Integer paise stores money exactly.
+- Actual execution times should be recorded from the compiler.
+
+## 7. Engineering Decision
+
+**Should Money allow multiplication by another Money?**
+
+No. Multiplying two monetary amounts does not normally have a meaningful financial result.
+
+Operators that make sense:
+
+- `+` for adding amounts.
+- `-` for subtracting amounts.
+- `+=` for updating a bill.
+- `==` for checking equal amounts.
+- `<` for comparing amounts.
+
+Multiplication by a number may be useful for calculating quantities, but multiplication of two Money objects should not be allowed.
+
+## 8. Complete the Code – TODO 1 and TODO 2
+
+The required code for the given PDF program is:
+
+**TODO 1 – Overload `+`**
+
+```cpp
+Money operator+(const Money& m) const {
+    return Money(0, paise + m.paise);
+}
+```
+
+**TODO 2 – Overload `==` and `<<`**
+
+```cpp
+bool operator==(const Money& m) const {
+    return paise == m.paise;
+}
+
+friend ostream& operator<<(ostream& out, const Money& m) {
+    out << "Rs " << m.paise / 100 << "."
+        << setw(2) << setfill('0') << m.paise % 100
+        << setfill(' ');
+    return out;
+}
+```
+
+### Expected Output of the PDF Program
+
+```text
+Rs 200.00
+true
+```
+
+## 9. Alternative Concept – Non-Member Friend Functions
+
+The operators can also be implemented as non-member friend functions.
+
+Example:
+
+```cpp
+friend Money operator+(const Money& a, const Money& b) {
+    return Money(0, a.paise + b.paise);
+}
+```
+
+Another alternative is using named functions:
+
+```cpp
+Money add(Money a, Money b) {
+    return Money(0, a.paise + b.paise);
+}
+```
+
+### Comparison
+
+| Method | Time Complexity | Space Complexity |
+|---|---|---|
+| Member operator | O(1) | O(1) |
+| Friend operator | O(1) | O(1) |
+| Named function | O(1) | O(1) |
+
+All three methods have the same time and space complexity.
+
+**Which method allows `100 + m` and `m + 100`?**
+
+A non-member friend operator can support both expressions because the compiler can convert either operand into a `Money` object, provided the constructor allows implicit conversion.
+
+A member operator alone supports `m + 100`, but not `100 + m`, because the left operand is an integer.
+
+## 10. Conclusion
+
+Operator overloading makes money calculations easier to read and understand. The `Money` class stores amounts in paise using `long long`, avoiding floating-point precision errors. Arithmetic, comparison and stream operators were successfully overloaded.
